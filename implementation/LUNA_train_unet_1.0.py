@@ -12,12 +12,13 @@ working_path = "/home/anthony/cs177a_lung_project/DSB3Tutorial/output/"
 
 K.set_image_dim_ordering('th')  # Theano dimension ordering in this code
 
+# dimensions of numpy representation of image
 img_rows = 512
 img_cols = 512
 
 smooth = 1.
 
-
+# loss function is dice coefficient comparing the predicted and actual node mask
 def dice_coef(y_true, y_pred):
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
@@ -33,13 +34,15 @@ def dice_coef_np(y_true,y_pred):
 def dice_coef_loss(y_true, y_pred):
     return -dice_coef(y_true, y_pred)
 
-
+# U-net FCN
 def get_unet():
+
+    # load training input
     inputs = Input((1,img_rows, img_cols))
 
     filter = 32
 
-    x = BatchNormalization()(inputs)
+    x = BatchNormalization()(inputs) # to prevent overfitting
     conv1 = Convolution2D(filter, 3, 3, activation='relu', border_mode='same')(x)
     conv1 = Convolution2D(filter, 3, 3, activation='relu', border_mode='same')(conv1)
     pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
@@ -98,6 +101,7 @@ def get_unet():
 
     model = Model(input=inputs, output=conv10)
 
+    # momentum and Nesterov optimizer
     model.compile(optimizer=SGD(lr=0.001, momentum=0.9, nesterov=True), loss=dice_coef_loss, metrics=[dice_coef])
     model.summary()
 
@@ -123,30 +127,25 @@ def train_and_predict(use_existing):
     print('-'*30)
     print('Creating and compiling model...')
     print('-'*30)
+
+    # Load the segmenter
     model = get_unet()
+
     # Saving weights to unet.hdf5 at checkpoints
     model_checkpoint = ModelCheckpoint('unet.hdf5', monitor='loss', save_best_only=True, verbose=1)
-    #
-    # Should we load existing weights?
-    # Set argument for call to train_and_predict to true at end of script
+
+    # If one wants to load pre-existing weights, set argument for call to
+    # train_and_predict to true at end of script
     if use_existing:
         model.load_weights('./unet.hdf5')
 
-    #
-    # The final results for this tutorial were produced using a multi-GPU
-    # machine using TitanX's.
-    # For a home GPU computation benchmark, on my home set up with a GTX970
-    # I was able to run 20 epochs with a training set size of 320 and
-    # batch size of 2 in about an hour. I started getting reseasonable masks
-    # after about 3 hours of training.
-    #
     print('-'*30)
     print('Fitting model...')
     print('-'*30)
     model.fit(imgs_train, imgs_mask_train, batch_size=4, nb_epoch=100, verbose=1, shuffle=True,
               callbacks=[model_checkpoint])
 
-    # loading best weights from training session
+    # loading best weights from previous training session
     print('-'*30)
     print('Loading saved weights...')
     print('-'*30)
@@ -167,4 +166,6 @@ def train_and_predict(use_existing):
     print("Mean Dice Coeff : ",mean)
 
 if __name__ == '__main__':
+    # If one wants to load pre-existing weights, set argument for call to
+    # train_and_predict to true at end of script
     train_and_predict(False)

@@ -11,6 +11,8 @@ except:
     print('TQDM does make much nicer wait bars...')
     tqdm = lambda x: x
 
+# construct a training set from the LUNA16 dataset
+
 #Some helper functions
 
 def make_mask(center,diam,z,width,height,spacing,origin):
@@ -49,6 +51,7 @@ z = z position of slice in world coordinates mm
                 mask[int((p_y-origin[1])/spacing[1]),int((p_x-origin[0])/spacing[0])] = 1.0
     return(mask)
 
+# converts a numpy array into a uint16 version of a numpy array
 def matrix2int16(matrix):
     '''
 matrix must be a numpy array NXN
@@ -59,8 +62,7 @@ Returns uint16 version
     matrix = matrix-m_min
     return(np.array(np.rint( (matrix-m_min)/float(m_max-m_min) * 65535.0),dtype=np.uint16))
 
-############
-#
+
 # Getting list of image files
 luna_path = "/home/anthony/cs177a_lung_project/kaggle_ndsb2017/luna_raw/"
 luna_subset_path = luna_path+"subset1/"
@@ -68,24 +70,19 @@ output_path = "/home/anthony/cs177a_lung_project/DSB3Tutorial/output/"
 file_list=glob(luna_subset_path+"*.mhd")
 
 
-#####################
-#
 # Helper function to get rows in data frame associated
 # with each file
 def get_filename(file_list, case):
     for f in file_list:
         if case in f:
             return(f)
-#
-# The locations of the nodes
+
+# get the locations of the nodes
 df_node = pd.read_csv(luna_path+"annotations.csv")
 df_node["file"] = df_node["seriesuid"].map(lambda file_name: get_filename(file_list, file_name))
 df_node = df_node.dropna()
 
-#####
-#
 # Looping over the image files
-#
 for fcount, img_file in enumerate(tqdm(file_list)):
     mini_df = df_node[df_node["file"]==img_file] #get all nodules associate with file
     if mini_df.shape[0]>0: # some files may not have a nodule--skipping those
@@ -101,16 +98,35 @@ for fcount, img_file in enumerate(tqdm(file_list)):
             node_y = cur_row["coordY"]
             node_z = cur_row["coordZ"]
             diam = cur_row["diameter_mm"]
-            # just keep 3 slices
+            # just keep 3 slices -- any higher value cannot be handled by np.float64
+            # there is probably an optimal number of slices through the nodule
             imgs = np.ndarray([3,height,width],dtype=np.float32)
             masks = np.ndarray([3,height,width],dtype=np.uint8)
             center = np.array([node_x, node_y, node_z])   # nodule center
             v_center = np.rint((center-origin)/spacing)  # nodule center in voxel space (still x,y,z ordering)
             for i, i_z in enumerate(np.arange(int(v_center[2])-1,
                              int(v_center[2])+2).clip(0, num_z-1)): # clip prevents going out of bounds in Z
+                # pass the node information to the make_mask() function and copy
+                # the generated masks and image for the v_center[2] slice above
+                # and below it
                 mask = make_mask(center, diam, i_z*spacing[2]+origin[2],
                                  width, height, spacing, origin)
                 masks[i] = mask
                 imgs[i] = img_array[i_z]
             np.save(os.path.join(output_path,"images_%04d_%04d.npy" % (fcount, node_idx)),imgs)
             np.save(os.path.join(output_path,"masks_%04d_%04d.npy" % (fcount, node_idx)),masks)
+
+#-------------------------------------------------------------------------------
+# to visualize extracted mask from annotations
+
+# import matplotlib.pyplot as plt
+# imgs = np.load(output_path+'images_0000_0978.npy')
+# masks = np.load(output_path+'masks_0000_0978.npy')
+# for i in range(len(imgs)):
+#     print( "image %d" % i)
+#     fig,ax = plt.subplots(2,2,figsize=[8,8])
+#     ax[0,0].imshow(imgs[i],cmap='gray')
+#     ax[0,1].imshow(masks[i],cmap='gray')
+#     ax[1,0].imshow(imgs[i]*masks[i],cmap='gray')
+#     plt.show()
+#     input("hit enter to cont : ")

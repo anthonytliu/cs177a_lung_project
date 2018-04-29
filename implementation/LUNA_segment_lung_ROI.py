@@ -5,11 +5,13 @@ from sklearn.cluster import KMeans
 from skimage.transform import resize
 from glob import glob
 
+# isolation of the lung region of interest to narrow our nodule search
+
 working_path = "/home/anthony/cs177a_lung_project/DSB3Tutorial/output/"
 file_list=glob(working_path+"images_*.npy")
 
 for img_file in file_list:
-    # I ran into an error when using Kmean on np.float16, so I'm using np.float64 here
+    # error when using Kmean on np.float16, so using np.float64 here
     imgs_to_process = np.load(img_file).astype(np.float64)
     print ("on image", img_file)
     for i in range(len(imgs_to_process)):
@@ -32,7 +34,7 @@ for img_file in file_list:
         #
         # Using Kmeans to separate foreground (radio-opaque tissue)
         # and background (radio transparent tissue ie lungs)
-        # Doing this only on the center of the image to avoid
+        # only on the center of the image to avoid
         # the non-tissue parts of the image as much as possible
         #
         kmeans = KMeans(n_clusters=2).fit(np.reshape(middle,[np.prod(middle.shape),1]))
@@ -138,10 +140,10 @@ for fname in file_list:
             max_row=min_row+width
         else:
             max_col = min_col+height
-        #
+
         # cropping the image down to the bounding box for all regions
         # (there's probably an skimage command that can do this in one line)
-        #
+
         img = img[min_row:max_row,min_col:max_col]
         mask =  mask[min_row:max_row,min_col:max_col]
         if max_row-min_row <5 or max_col-min_col<5:  # skipping all images with no god regions
@@ -159,9 +161,9 @@ for fname in file_list:
             out_nodemasks.append(new_node_mask)
 
 num_images = len(out_images)
-#
+
 #  Writing out images and masks as 1 channel arrays for input into network
-#
+
 final_images = np.ndarray([num_images,1,512,512],dtype=np.float32)
 final_masks = np.ndarray([num_images,1,512,512],dtype=np.float32)
 for i in range(num_images):
