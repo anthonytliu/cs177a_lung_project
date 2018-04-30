@@ -173,3 +173,14 @@ plt.imshow(testimgsubset[2][0], cmap='brg')
 plt.imshow(testmasks[2][0], cmap='brg')
 plt.imshow(testoutputs[2][0], cmap='brg')
 plt.imshow(testimgsubset[2][0]-testoutputs[2][0], cmap='brg')
+
+# generate figure 3 for final paper
+for i in range(len(imgs_test)):
+    print( "image %d" % i)
+    fig,ax = plt.subplots(2,2,figsize=[8,8])
+    ax[0,0].imshow(imgs_test[i][0],cmap='gray')
+    ax[0,1].imshow(imgs_mask_test_true[i][0],cmap='rainbow')
+    ax[1,0].imshow(masks_predicted[i][0],cmap='rainbow')
+    ax[1,1].imshow(masks_predicted[i][0]*imgs_mask_test_true[i][0],cmap='rainbow')
+    plt.show()
+    input("hit enter to cont : ")
